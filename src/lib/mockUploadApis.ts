@@ -21,6 +21,60 @@ export interface MatchItem {
   raw_payload?: Record<string, any>;
 }
 
+type JsonRecord = Record<string, unknown>;
+
+const PROFILE_ARRAY_PATHS = [
+  ["patient", "comorbidities"], ["patient", "medications"],
+  ["assessment", "suspected_primary"], ["assessment", "differential"],
+  ["assessment", "diagnosis_secondary"],
+  ["findings", "lungs", "consolidation_locations"],
+  ["findings", "lungs", "atelectasis_locations"],
+  ["findings", "devices", "device_list"], ["findings", "other"],
+  ["summary", "key_points"], ["summary", "red_flags"],
+  ["presentation", "differential_diagnosis"],
+  ["plan", "immediate_interventions"], ["plan", "monitoring_recommendations"],
+  ["provenance", "authors"],
+  ["tags", "ml_labels"], ["tags", "gt_labels"], ["tags", "keywords"], ["tags", "mesh_terms"],
+] as const;
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Make cached/local-model payloads safe for list rendering in the UI. */
+function normalizeMatchPayload(payload: unknown): Record<string, any> | undefined {
+  if (!isRecord(payload)) return undefined;
+  const normalized: JsonRecord = { ...payload };
+
+  for (const path of PROFILE_ARRAY_PATHS) {
+    let current: JsonRecord = normalized;
+    let completePath = true;
+    for (const key of path.slice(0, -1)) {
+      const next = current[key];
+      if (!isRecord(next)) {
+        completePath = false;
+        break;
+      }
+      current[key] = { ...next };
+      current = current[key] as JsonRecord;
+    }
+    if (!completePath) continue;
+    const field = path[path.length - 1];
+    if (field in current && current[field] != null && !Array.isArray(current[field])) {
+      current[field] = [current[field]];
+    }
+  }
+
+  if ("related_images" in normalized && normalized.related_images != null && !Array.isArray(normalized.related_images)) {
+    normalized.related_images = [normalized.related_images];
+  }
+  return normalized as Record<string, any>;
+}
+
+function normalizeMatch(match: MatchItem): MatchItem {
+  return { ...match, raw_payload: normalizeMatchPayload(match.raw_payload) };
+}
+
 import type { CaseProfile } from "./caseProfileTypes";
 
 export async function searchByImage(file: File, profile?: CaseProfile, limit = 10): Promise<MatchItem[]> {
@@ -54,7 +108,9 @@ export async function searchByImage(file: File, profile?: CaseProfile, limit = 1
   }
 
   const data = await response.json() as { matches: MatchItem[]; count: number };
-  return data.matches;
+  // The backend normally supplies canonical arrays. This guard keeps one old
+  // or malformed cached enrichment from taking down the complete results view.
+  return data.matches.map(normalizeMatch);
 }
 
 export interface ComparisonInsights {
