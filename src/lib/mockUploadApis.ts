@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+import { API_BASE } from "./api";
 
 export interface MatchItem {
   score: number;
@@ -8,6 +8,8 @@ export interface MatchItem {
   outcome: string;
   outcomeVariant: "success" | "warning" | "neutral";
   image_url: string;
+  asset_id?: string;
+  related_image_urls?: string[];
   age?: number;
   gender?: string;
   pmc_id?: string;
@@ -65,8 +67,8 @@ export async function compareInsights(originalImage: File, matchItem: MatchItem)
   const formData = new FormData();
   formData.append("original_image", originalImage);
   formData.append("match_diagnosis", matchItem.diagnosis);
-  if (matchItem.image_url) {
-    formData.append("match_image_url", matchItem.image_url);
+  if (matchItem.asset_id) {
+    formData.append("match_asset_id", matchItem.asset_id);
   }
   if (matchItem.raw_payload) {
     formData.append("match_payload", JSON.stringify(matchItem.raw_payload));
@@ -169,9 +171,7 @@ export async function mockIngestImagingFile(fileName: string): Promise<MockAgent
   await delay(700);
 
   const lower = fileName.toLowerCase();
-  const modality = lower.endsWith(".dcm")
-    ? "CT Chest (from DICOM header)"
-    : lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+  const modality = lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".webp")
       ? "Chest image upload"
       : "Imaging uploaded";
 

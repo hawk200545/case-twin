@@ -76,7 +76,7 @@ export function createInitialState(): OrchestratorState {
         phase: "greeting",
         messages: [
             assistantMsg(
-                "Clinical Copilot online. I'll guide you through building a complete case profile.\n\nDrop imaging studies (DICOM, JPG, PNG) or documents (PDF, DOCX, TXT) directly into the chat, or paste a clinical note. I'll extract, structure, and ask follow-up questions until the profile is ready for routing.",
+                "Clinical Copilot online. I'll guide you through building a complete case profile.\n\nDrop JPEG, PNG, or WebP imaging studies or documents (PDF, DOCX, TXT) directly into the chat, or paste a clinical note. I'll extract, structure, and ask follow-up questions until the profile is ready for routing.",
             ),
         ],
         currentQuestion: null,
@@ -117,7 +117,7 @@ export async function processIntakeTurn(input: ProcessTurnInput): Promise<Proces
     outgoingMessages.push(userMessage);
 
     // Capture local image URL for the first uploaded image
-    const firstImageFile = files.find(f => f.type.startsWith("image/") || f.name.endsWith(".dcm"));
+    const firstImageFile = files.find(f => f.type === "image/jpeg" || f.type === "image/png" || f.type === "image/webp");
     const localImageUrl = firstImageFile ? URL.createObjectURL(firstImageFile) : null;
 
     // ── Unified path: always run extraction for any non-empty text or files ──
@@ -131,8 +131,8 @@ export async function processIntakeTurn(input: ProcessTurnInput): Promise<Proces
         return { newState: currentState };
     }
 
-    const images = files.filter(f => f.type.startsWith("image/") || f.name.endsWith(".dcm"));
-    const docs = files.filter(f => !f.type.startsWith("image/") && !f.name.endsWith(".dcm"));
+    const images = files.filter(f => f.type === "image/jpeg" || f.type === "image/png" || f.type === "image/webp");
+    const docs = files.filter(f => !images.includes(f));
     const notesFile = docs[0] ?? null;
 
     let newProfile: CaseProfile;

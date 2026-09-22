@@ -18,7 +18,8 @@ interface PopoverState {
     width: number;
 }
 
-const BACKEND = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+import { API_BASE } from "@/lib/api";
+const BACKEND = API_BASE;
 
 /**
  * Wraps children with a text-selection listener.
@@ -256,4 +257,3 @@ function ExplainPopover({ popover, onDismiss }: { popover: PopoverState; onDismi
         </div>
     );
 }
-

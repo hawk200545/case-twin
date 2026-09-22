@@ -5,13 +5,9 @@ requests
 qdrant-client
 python-dotenv
 pillow
-huggingface_hub
-google-cloud-storage
 httpx
+numpy
+pandas
+pyarrow
+pypdf
 geopy
-crewai
-crewai-tools
-google-genai
-litellm
-google-generativeai
-langsmith

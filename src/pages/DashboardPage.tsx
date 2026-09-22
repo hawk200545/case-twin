@@ -2,6 +2,7 @@ import { useCallback, useRef, useState, useMemo, useEffect, type ButtonHTMLAttri
 import { useDashboardStore } from "@/store/dashboardStore";
 import { Check, FileText, Loader2, MapPin, Settings2, Stethoscope, FolderOpen, Plus, HeartPulse, CloudOff, Scan, Microscope, Activity, ChevronLeft, Building2, X, Phone, ChevronRight } from "lucide-react";
 import { searchByImage, findHospitalsRoute } from "@/lib/mockUploadApis";
+import { API_BASE } from "@/lib/api";
 import { computeProfileConfidence } from "@/lib/caseProfileUtils";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -37,7 +38,9 @@ interface MatchItem {
   facility: string;
   outcome: string;
   outcomeVariant: "success" | "warning" | "neutral";
-  image_url: string; // <-- Remove optional since mockUploadApis promises a string
+  image_url: string;
+  asset_id?: string;
+  related_image_urls?: string[];
   age?: number;
   gender?: string;
   pmc_id?: string;

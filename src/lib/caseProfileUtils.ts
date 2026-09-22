@@ -1,8 +1,7 @@
 import type { CaseProfile } from "./caseProfileTypes";
 import { emptyProfile } from "./caseProfileTypes";
-
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-
+import { API_BASE } from "./api";
+w
 // ─── Confidence scoring ────────────────────────────────────────────────────
 
 interface ConfidenceField {
@@ -51,6 +50,7 @@ export async function extractCaseProfile(
     notes: string,
     notesFile: File | null
 ): Promise<CaseProfile> {
+    let extractionError: string | null = null;
     // Try backend first
     try {
         const form = new FormData();
@@ -63,17 +63,26 @@ export async function extractCaseProfile(
             body: form,
         });
 
-        if (res.ok) {
-            const data = await res.json() as { profile: CaseProfile };
-            return data.profile;
+        if (!res.ok) {
+            const payload = await res.json().catch(() => null) as { detail?: string } | null;
+            throw new Error(payload?.detail || `Extraction failed (${res.status})`);
         }
-    } catch {
+        const data = await res.json() as { profile: CaseProfile };
+        return data.profile;
+    } catch (error) {
         // backend offline — fall through to client-side mock
+        extractionError = error instanceof Error ? error.message : "Document extraction could not be completed.";
     }
 
     // Client-side mock extraction
     await delay(1200);
-    return clientSideExtract(images, notes);
+    const fallback = clientSideExtract(images, notes);
+    // Do not silently replace a rejected PDF with binary garbage or an empty
+    // profile. The profile view surfaces this actionable import message.
+    if (notesFile && extractionError) {
+        fallback.extra_fields.document_import = extractionError;
+    }
+    return fallback;
 }
 
 // ─── Client-side mock extraction (regex-based) ─────────────────────────────

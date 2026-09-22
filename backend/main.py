@@ -8,8 +8,6 @@ GET  /health   — health check.
 import os
 from dotenv import load_dotenv
 load_dotenv()
-os.environ["LANGCHAIN_TRACING_V2"] = "true"
-os.environ["LANGCHAIN_PROJECT"] = "casetwin"
 
 import io
 import json
@@ -18,27 +16,23 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 
 from embedding_service import generate_embedding, query_medgemma
 from qdrant_service import search_similar
+from manifest import asset_path
+from document_text import DocumentExtractionError, extract_document_text
 
 app = FastAPI(title="CaseTwin API", version="1.0.0")
 
-# Origins: comma-separated list injected via ALLOWED_ORIGINS env var in prod.
-# Falls back to localhost dev origins when the var is not set.
-_raw_origins = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173",
-)
-_allowed_origins = [o.strip() for o in _raw_origins.split(",")]
-
+# Allow the Vite dev server (and any localhost port) to call the API
+_configured_origins = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "").split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_allowed_origins,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://localhost:8080", "http://127.0.0.1:8080", *_configured_origins],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -49,8 +43,25 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/dataset-images/{asset_id}")
+def dataset_image(asset_id: str):
+    """Serve a derived asset by safe identifier; source paths never leave the backend."""
+    try:
+        path = asset_path(asset_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Dataset image not found") from exc
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Dataset image not found")
+    return FileResponse(path)
+
+
+def _dataset_url(request: Request, asset_id: str | None) -> str | None:
+    return str(request.url_for("dataset_image", asset_id=asset_id)) if asset_id else None
+
+
 @app.post("/search")
 async def search(
+    request: Request,
     file: UploadFile = File(...),
     profile: Optional[str] = Form(None),
     limit: int = 10
@@ -60,7 +71,7 @@ async def search(
     and return the top `limit` similar cases from Qdrant, re-ranked
     using the extracted CaseProfile.
     """
-    if file.content_type not in ("image/jpeg", "image/png", "image/webp", "image/gif"):
+    if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
         raise HTTPException(status_code=400, detail="Only image files are accepted (jpg, png, webp).")
 
     try:
@@ -92,6 +103,16 @@ async def search(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Qdrant search failed: {e}")
 
+    for match in matches:
+        match["image_url"] = _dataset_url(request, match.get("asset_id"))
+        match["related_image_urls"] = [_dataset_url(request, asset_id) for asset_id in match.get("related_asset_ids", [])]
+        payload = match.get("raw_payload")
+        if isinstance(payload, dict):
+            # The modal reads the canonical profile, so expose local URLs there too.
+            payload.get("study", {})["image_url"] = match["image_url"]
+            for related, url in zip(payload.get("related_images", []), match["related_image_urls"]):
+                if isinstance(related, dict):
+                    related["image_url"] = url
     return {"matches": matches, "count": len(matches)}
 
 
@@ -102,7 +123,7 @@ async def search(
 async def compare_insights(
     original_image: UploadFile = File(...),
     match_diagnosis: str = Form(...),
-    match_image_url: str = Form(None),
+    match_asset_id: str = Form(None),
     match_payload: str = Form(None)
 ):
     """
@@ -111,7 +132,6 @@ async def compare_insights(
     This also handles the matched image if we pass it, but for simplicity
     we'll fetch/analyze both or simulate bounding boxes if it fails.
     """
-    import httpx
     
     # Read original image
     try:
@@ -120,16 +140,18 @@ async def compare_insights(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not read original image: {e}")
         
-    # Read matched image
+    # Read matched image from the derived read-only dataset, never from a public URL.
     match_pil = None
-    if match_image_url and match_image_url.startswith("http"):
+    if match_asset_id:
         try:
-            async with httpx.AsyncClient() as client:
-                r = await client.get(match_image_url)
-                if r.status_code == 200:
-                    match_pil = Image.open(io.BytesIO(r.content)).convert("RGB")
+            local_asset = asset_path(match_asset_id)
+            if not local_asset.is_file():
+                raise HTTPException(status_code=404, detail="Matched dataset image was not found")
+            match_pil = Image.open(local_asset).convert("RGB")
         except Exception as e:
-            print(f"Warning: could not fetch matched image {match_image_url}: {e}")
+            if isinstance(e, HTTPException):
+                raise
+            raise HTTPException(status_code=400, detail="Invalid matched dataset image") from e
 
     # Parse match payload for context
     parsed_payload = {}
@@ -194,35 +216,9 @@ async def compare_insights(
         except Exception as e:
             print(f"MedGemma match box extraction error: {e}")
             
-    # Fallback to simulated bounding boxes if model fails or doesn't support coordinates
+    # Do not fabricate boxes. A model that cannot localize a finding reports no box.
     if not orig_box or not match_box:
-        # Generate pseudo-random deterministic coordinates based on diagnosis and URL
-        import hashlib
-        hash_input = f"{match_diagnosis}-{match_image_url or 'local'}".encode()
-        h = int(hashlib.md5(hash_input).hexdigest()[:8], 16)
-        
-        # Base ranges
-        y_center = 200 + (h % 500)
-        x_center = 200 + ((h // 500) % 500)
-        box_size = 150 + (h % 200)
-        
-        if not orig_box:
-            orig_box = [
-                max(0, y_center - box_size//2),
-                max(0, x_center - box_size//2),
-                min(1000, y_center + box_size//2),
-                min(1000, x_center + box_size//2)
-            ]
-        if not match_box:
-            # Shift match box slightly
-            y_shift = -50 + (h % 100)
-            x_shift = -50 + ((h // 100) % 100)
-            match_box = [
-                max(0, orig_box[0] + y_shift),
-                max(0, orig_box[1] + x_shift),
-                min(1000, orig_box[2] + y_shift),
-                min(1000, orig_box[3] + x_shift)
-            ]
+        raise HTTPException(status_code=422, detail="The local model did not return localization boxes for this comparison.")
 
     orig_region = get_region_text(orig_box) if orig_box else "the affected region"
     match_region = get_region_text(match_box) if match_box else "the affected region"
@@ -944,14 +940,16 @@ async def extract(
             if img.filename:
                 image_names.append(img.filename)
 
-    # If a notes file was uploaded, try to read it as plain text
+    # Extract document text by file format. In particular, never decode PDF
+    # bytes as UTF-8, which would leak `%PDF-...` syntax into the clinical HPI.
     notes_text = notes
     if notes_file:
         try:
             raw = await notes_file.read()
-            notes_text = (notes_text + "\n" + raw.decode("utf-8", errors="ignore")).strip()
-        except Exception:
-            pass  # ignore unreadable files
+            document_text = extract_document_text(notes_file.filename, notes_file.content_type, raw)
+            notes_text = (notes_text + "\n" + document_text).strip()
+        except DocumentExtractionError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     profile = await _extract_profile(images, notes_text)
     return {"profile": profile}

@@ -3,6 +3,7 @@ import { Send, Activity, User, Loader2, FileText, X, ChevronRight } from "lucide
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { type MatchItem } from "@/lib/mockUploadApis";
+import { API_BASE } from "@/lib/api";
 import type { CaseProfile } from "@/lib/caseProfileTypes";
 
 interface ChatMessage {
@@ -25,7 +26,7 @@ const STARTERS = [
     "Was ICU required for the twin?",
 ];
 
-const BACKEND = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const BACKEND = API_BASE;
 
 export function TwinChatPanel({ isOpen, onClose, match, currentProfile }: TwinChatPanelProps) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);

@@ -13,11 +13,13 @@ interface TwinProfileModalProps {
 export function TwinProfileModal({ isOpen, onClose, match }: TwinProfileModalProps) {
     if (!match) return null;
 
-    const p = match.raw_payload || {};
+    // Search payloads are canonical profiles; older nested payloads remain readable.
+    const payload = match.raw_payload || {};
+    const p = payload.profile || payload;
     const patient = p.patient || {};
     const presentation = p.presentation || {};
     const findings = p.findings || {};
-    const relatedImgs: any[] = p.related_images || [];
+    const relatedImgs: any[] = payload.related_images || p.related_images || [];
 
     return (
         <Dialog open={isOpen}>
@@ -377,10 +379,11 @@ export function TwinProfileModal({ isOpen, onClose, match }: TwinProfileModalPro
                                 <h3 className="text-lg font-semibold text-zinc-900 pb-2 flex items-center gap-2">
                                     <ImageIcon className="h-5 w-5 text-zinc-500" /> Case Imaging
                                 </h3>
-                                {relatedImgs.length > 0 ? (
+                                {match.image_url || relatedImgs.length > 0 ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {(p.image_url ? [{ local_image_path: p.image_url, caption: p.study?.caption || "Primary View", image_subtype: "Dataset Image" } as any] : []).concat(relatedImgs).map((img, idx) => {
-                                            const url = img.local_image_path?.startsWith("http") ? img.local_image_path : `https://storage.googleapis.com/casetwin-xrays/chest-xrays/${img.local_image_path.replace(/^images\//, '')}`;
+                                        {(match.image_url ? [{ image_url: match.image_url, caption: p.study?.caption || "Primary View", image_subtype: "Dataset Image" } as any] : []).concat(relatedImgs).map((img, idx) => {
+                                            // URLs are normalized by the API; never construct cloud-storage paths in the UI.
+                                            const url = img.image_url || img.local_image_path || "";
                                             return (
                                                 <div key={idx} className="bg-white p-3 rounded-xl border border-zinc-200/80 shadow-sm flex flex-col gap-2 relative group hover:border-zinc-300 transition-colors">
                                                     <div className="aspect-[4/3] w-full bg-zinc-100 flex items-center justify-center rounded-lg overflow-hidden relative">
@@ -390,15 +393,6 @@ export function TwinProfileModal({ isOpen, onClose, match }: TwinProfileModalPro
                                                 </div>
                                             )
                                         })}
-                                    </div>
-                                ) : match.image_url ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="bg-white p-3 rounded-xl border border-zinc-200/80 shadow-sm flex flex-col gap-2">
-                                            <div className="aspect-[4/3] w-full bg-zinc-100 flex items-center justify-center rounded-lg overflow-hidden">
-                                                <img src={match.image_url} alt="Historical Case Imaging" className="w-full h-full object-contain mix-blend-multiply" />
-                                            </div>
-                                            <p className="text-xs text-zinc-600 leading-snug px-1">{p.study?.caption || "Primary View"}</p>
-                                        </div>
                                     </div>
                                 ) : (
                                     <p className="text-sm text-zinc-500 italic bg-zinc-50/50 p-6 rounded-xl border border-dashed border-zinc-200 text-center">No images available for this historical case.</p>

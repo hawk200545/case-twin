@@ -1,54 +1,9 @@
-# -------------------------------------------------------
-# root .dockerignore
-# Applied when building the frontend Docker image from
-# the repo root as the build context.
-# -------------------------------------------------------
-
-# Git metadata
-.git/
-.gitignore
-
-# Python backend (separate container, not needed here)
-backend/
-
-# Python virtual environment
-casetwin/
-
-# Node dependencies (rebuilt inside container)
 node_modules/
-
-# Vite build output (rebuilt inside container)
 dist/
-.vite/
-*.tsbuildinfo
-
-# Environment / secrets (.env.production is intentionally included — it's a public URL)
-.env
-.env.*
-!.env.production
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-pnpm-debug.log*
-
-# IDE / OS
-.vscode/
-.idea/
-*.swp
-*.swo
-.DS_Store
-Thumbs.db
-
-# Large data files (not needed for frontend build)
-dataset*.json
-*.jsonl
-ingest_*.py
-
-# Notebooks
-*.ipynb
-
-# Docs
-README.md
-docs/
+.git/
+medical_datasets/
+dataset/
+fully-done/
+backend/.env
+*.pyc
+__pycache__/
