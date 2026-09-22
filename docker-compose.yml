@@ -8,9 +8,9 @@
 #
 # Backend secrets come from backend/.env (gitignored) via
 # env_file — they are never baked into the image.
-# The frontend bakes VITE_API_URL from .env.production at
-# build time; it points at http://localhost:8005 which is
-# where the backend is published below.
+# The frontend bakes VITE_API_URL=/api from .env.production.
+# Nginx proxies that same-origin path to the backend service,
+# so remote browsers never call their own localhost.
 # -------------------------------------------------------
 
 services:
@@ -38,6 +38,8 @@ services:
 
   frontend:
     build: .
+    depends_on:
+      - backend
     ports:
       - "8080:80"
     restart: unless-stopped
