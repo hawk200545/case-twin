@@ -5,7 +5,6 @@ import { searchByImage, findHospitalsRoute } from "@/lib/mockUploadApis";
 import { API_BASE } from "@/lib/api";
 import { computeProfileConfidence } from "@/lib/caseProfileUtils";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 import { type CaseProfile } from "@/lib/caseProfileTypes";
 import { CaseProfileView } from "@/components/CaseProfileView";
 import { AgenticCopilotPanel } from "@/components/AgenticCopilotPanel";

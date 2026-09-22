@@ -1,7 +1,6 @@
 import type { CaseProfile } from "./caseProfileTypes";
 import { emptyProfile } from "./caseProfileTypes";
 import { API_BASE } from "./api";
-w
 // ─── Confidence scoring ────────────────────────────────────────────────────
 
 interface ConfidenceField {
