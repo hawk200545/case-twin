@@ -13,7 +13,7 @@ interface UploadDropzoneProps {
   onChange: (file: FileLike | null) => void;
 }
 
-const acceptedTypes = ".dcm,.jpg,.jpeg,.png";
+const acceptedTypes = ".jpg,.jpeg,.png,.webp";
 
 export function UploadDropzone({ value, onChange }: UploadDropzoneProps) {
   const [dragActive, setDragActive] = React.useState(false);
@@ -48,7 +48,7 @@ export function UploadDropzone({ value, onChange }: UploadDropzoneProps) {
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-blue-300/60 to-transparent" />
         <Upload className="mx-auto mb-2 h-5 w-5 text-blue-600" />
         <p className="text-sm font-semibold text-slate-800">Drop imaging files to create a case</p>
-        <p className="mt-1 text-xs text-slate-500">Accepted formats: .dcm, .jpg, .jpeg, .png</p>
+        <p className="mt-1 text-xs text-slate-500">Accepted formats: .jpg, .jpeg, .png, .webp</p>
         <label className="mt-4 inline-block cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
           Browse files
           <input

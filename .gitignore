@@ -19,6 +19,7 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+!.env.production
 
 # Coverage
 coverage/
@@ -39,8 +40,12 @@ backend/__pycache__/
 backend/.venv/
 backend/*.pyc
 backend/application_default_credentials.json
+data_pipeline/__pycache__/
 
 dataset_cxr_primary.json
 ingest_cxr.py
 
 venv/
+fully-done/
+dataset/
+medical_datasets/

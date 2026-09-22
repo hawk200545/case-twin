@@ -2,6 +2,7 @@ import { useCallback, useRef, useState, useMemo, useEffect, type ButtonHTMLAttri
 import { useDashboardStore } from "@/store/dashboardStore";
 import { Check, FileText, Loader2, MapPin, Settings2, Stethoscope, FolderOpen, Plus, HeartPulse, CloudOff, Scan, Microscope, Activity, ChevronLeft, Building2, X, Phone, ChevronRight } from "lucide-react";
 import { searchByImage, findHospitalsRoute } from "@/lib/mockUploadApis";
+import { API_BASE } from "@/lib/api";
 import { computeProfileConfidence } from "@/lib/caseProfileUtils";
 import { type CaseProfile } from "@/lib/caseProfileTypes";
 import { CaseProfileView } from "@/components/CaseProfileView";
@@ -35,7 +36,9 @@ interface MatchItem {
   facility: string;
   outcome: string;
   outcomeVariant: "success" | "warning" | "neutral";
-  image_url: string; // <-- Remove optional since mockUploadApis promises a string
+  image_url: string;
+  asset_id?: string;
+  related_image_urls?: string[];
   age?: number;
   gender?: string;
   pmc_id?: string;
@@ -278,7 +281,7 @@ function UploadScreen({
         fd.append("file", uploadedFile);
       }
 
-      const response = await fetch("http://localhost:8000/enhance_profile", {
+      const response = await fetch(`${API_BASE}/enhance_profile`, {
         method: "POST",
         body: fd,
       });
@@ -1102,7 +1105,7 @@ function RouteScreen({
       formData.append("location", userCoords);
     }
 
-    fetch("http://localhost:8000/analyze_hospital_page", {
+    fetch(`${API_BASE}/analyze_hospital_page`, {
       method: "POST",
       body: formData,
     })

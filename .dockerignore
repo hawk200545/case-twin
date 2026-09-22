@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.git/
+medical_datasets/
+dataset/
+fully-done/
+backend/.env
+*.pyc
+__pycache__/

@@ -279,7 +279,7 @@ export function AgenticCopilotPanel({
         const arr = Array.from(incoming);
         setPendingFiles(prev => [...prev, ...arr]);
         // Notify parent of any imaging file for future search
-        const imgFile = arr.find(f => f.type.startsWith("image/") || f.name.endsWith(".dcm"));
+        const imgFile = arr.find(f => f.type === "image/jpeg" || f.type === "image/png" || f.type === "image/webp");
         if (imgFile) onFileForSearch(imgFile);
     }, [onFileForSearch]);
 
@@ -498,7 +498,7 @@ export function AgenticCopilotPanel({
                 <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--mr-action)] bg-[rgba(10,103,143,0.06)]">
                     <UploadCloud className="h-10 w-10 text-[var(--mr-action)]" />
                     <p className="mt-2 text-sm font-semibold text-[var(--mr-action)]">Drop files to add them</p>
-                    <p className="text-xs text-[var(--mr-text-secondary)]">DICOM, Images, PDF, DOCX, TXT</p>
+                    <p className="text-xs text-[var(--mr-text-secondary)]">JPEG, PNG, WebP, PDF, DOCX, TXT</p>
                 </div>
             )}
 
@@ -529,7 +529,7 @@ export function AgenticCopilotPanel({
                         ref={fileInputRef}
                         type="file"
                         multiple
-                        accept=".jpg,.jpeg,.png,.webp,.dcm,.pdf,.docx,.txt,.json"
+                        accept=".jpg,.jpeg,.png,.webp,.pdf,.docx,.txt,.json"
                         className="hidden"
                         onChange={e => { addFiles(e.target.files ?? []); if (e.target) e.target.value = ""; }}
                     />
