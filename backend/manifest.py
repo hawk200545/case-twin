@@ -55,6 +55,42 @@ def merge_profile(base: dict, enrichment: dict | None) -> dict:
         for key, field in value.items():
             if key in result[section] and field is not None:
                 result[section][key] = field
+    return normalize_profile(result)
+
+
+def normalize_profile(profile: dict | None) -> dict:
+    """Return a canonical profile with list fields safe for API/UI consumers.
+
+    Local-model enrichment is deliberately best-effort, so an otherwise useful
+    response can occasionally supply one item as a string instead of a JSON
+    list.  The manifest schema promises lists for those fields.  Coercing them
+    here protects both newly prepared records and already-indexed payloads
+    without inventing any clinical information.
+    """
+    source = profile if isinstance(profile, dict) else {}
+    provenance = source.get("provenance") if isinstance(source.get("provenance"), dict) else {}
+    result = empty_profile(
+        article_id=str(source.get("case_id") or provenance.get("pmc_id") or "unknown"),
+        image_id=str(source.get("image_id") or "unknown"),
+        provenance=provenance,
+    )
+
+    def apply(template: dict, values: dict) -> None:
+        for key, default in template.items():
+            if key not in values or values[key] is None:
+                continue
+            value = values[key]
+            if isinstance(default, dict):
+                if isinstance(value, dict):
+                    apply(default, value)
+            elif isinstance(default, list):
+                # Keep a scalar extracted by the local model as one explicit
+                # item rather than treating the characters of a string as items.
+                template[key] = value if isinstance(value, list) else [value]
+            else:
+                template[key] = value
+
+    apply(result, source)
     return result
 
 

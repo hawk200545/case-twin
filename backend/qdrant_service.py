@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from qdrant_client import QdrantClient
 
+from manifest import normalize_profile
+
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY") or None
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "multicare_cxr")
@@ -51,14 +53,14 @@ def search_similar(embedding: list[float], profile_data: dict | None = None, lim
     candidates = []
     for result in results:
         payload = result.payload or {}
-        profile = payload.get("profile", {})
+        profile = normalize_profile(payload.get("profile"))
         context = _context_score(profile, profile_data)
         fused = 0.7 * (result.score / maximum) + 0.3 * context if profile_data else result.score / maximum
         candidates.append((fused, result.score, result.id, payload))
     candidates.sort(key=lambda item: item[0], reverse=True)
     matches = []
     for _, visual_score, point_id, payload in candidates[:limit]:
-        profile = payload.get("profile", {})
+        profile = normalize_profile(payload.get("profile"))
         assessment, summary, provenance, study = profile.get("assessment", {}), profile.get("summary", {}), profile.get("provenance", {}), profile.get("study", {})
         primary = assessment.get("diagnosis_primary") or summary.get("one_liner") or study.get("caption") or "Historical CXR case"
         matches.append({
@@ -74,6 +76,7 @@ def search_similar(embedding: list[float], profile_data: dict | None = None, lim
             # Preserve the existing UI contract while deriving every field from the
             # one canonical profile (never the former schema variants).
             "raw_payload": {**profile, "primary_asset_id": payload.get("primary_asset_id"),
-                            "related_images": payload.get("related_images", [])},
+                            "related_images": payload.get("related_images", [])
+                            if isinstance(payload.get("related_images"), list) else []},
         })
     return matches
