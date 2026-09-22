@@ -27,8 +27,8 @@ retains only `radiology + x_ray + chest X-ray/CXR caption` images, copies
 assets into ignored `dataset/assets`, creates `dataset/manifest.json`, and
 caches each article's local-model structured extraction in
 `dataset/enrichment-cache`. The manifest is the sole supported data contract;
-the former `build_schema_dataset.py`, `transform_to_schema.py`, and
-`cluster_cases.py` scripts are retained only as legacy research utilities.
+`data_pipeline/prepare_multicare.py` is the only supported preparation path.
+It replaces the former cloud/GCS schema-generation workflow.
 
 Start with `--workers 4` and increase only if the local gateway stays healthy;
 each worker issues one extraction request at a time. Completed article caches
